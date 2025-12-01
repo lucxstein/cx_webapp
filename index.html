@@ -51,7 +51,8 @@
           Infinity,
           BookOpen,
           Info,
-          Linkedin
+          Linkedin,
+          Trash2
         } from 'lucide-react';
 
         // Componentes de UI simplificados
@@ -62,7 +63,7 @@
         );
 
         const Button = ({ onClick, children, variant = "primary", className = "", disabled = false }) => {
-          const baseStyle = "px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
+          const baseStyle = "px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed justify-center";
           const variants = {
             primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg",
             secondary: "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50",
@@ -416,7 +417,10 @@
                   </div>
                 </Card>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-6">
+                {/* --- MUDANÇA PRINCIPAL AQUI: VISÃO DESKTOP (TABELA) vs VISÃO MOBILE (CARDS) --- */}
+                
+                {/* 1. VISÃO DESKTOP (Tabela padrão - oculta em telas pequenas) */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-6">
                   <table className="w-full text-left border-collapse bg-white">
                     <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold">
                       <tr>
@@ -444,7 +448,6 @@
                           const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
                           const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
                           const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
-                          
                           const revenueAtRisk = totalCustomersImpacted * metrics.arpu * 12;
                           const riskLevel = RISK_LEVELS.find(r => r.value === parseInt(point.churnRisk)) || RISK_LEVELS[0];
                           const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
@@ -493,6 +496,72 @@
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                {/* 2. VISÃO MOBILE (Cards - visível apenas em telas pequenas) */}
+                <div className="md:hidden space-y-4 mt-6">
+                    {painPoints.map((point) => {
+                          const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
+                          const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
+                          const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
+                          const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
+                          const revenueAtRisk = totalCustomersImpacted * metrics.arpu * 12;
+                          const riskLevel = RISK_LEVELS.find(r => r.value === parseInt(point.churnRisk)) || RISK_LEVELS[0];
+                          const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
+
+                          return (
+                            <div key={point.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Dor do Cliente</label>
+                                    <input 
+                                        className="w-full font-medium text-slate-800 outline-none border-b border-slate-200 focus:border-blue-400 py-1"
+                                        value={point.name}
+                                        onChange={(e) => updatePoint(point.id, 'name', e.target.value)}
+                                    />
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Vol. Mensal</label>
+                                        <input 
+                                            type="number"
+                                            className="w-full text-slate-700 outline-none border-b border-slate-200 focus:border-blue-400 py-1"
+                                            value={point.ticketVol}
+                                            onChange={(e) => updatePoint(point.id, 'ticketVol', e.target.value)}
+                                        />
+                                        <div className="text-xs text-slate-400 mt-1">{volPercentage}% do total</div>
+                                    </div>
+                                    <div>
+                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Impacto (Risco)</label>
+                                         <select
+                                            className={`w-full bg-transparent outline-none border-b border-slate-200 focus:border-blue-400 py-1 text-sm font-medium ${riskLevel.color}`}
+                                            value={point.churnRisk}
+                                            onChange={(e) => updatePoint(point.id, 'churnRisk', e.target.value)}
+                                          >
+                                            {RISK_LEVELS.map(level => (
+                                                <option key={level.value} value={level.value} className="text-slate-700">
+                                                    {level.label}
+                                                </option>
+                                            ))}
+                                          </select>
+                                    </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+                                    <div>
+                                        <div className="text-xs text-slate-400 mb-1">Receita em Risco (Ano)</div>
+                                        <div className="font-bold text-red-600">{formatMoney(revenueAtRisk)}</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => deletePoint(point.id)} 
+                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                          );
+                    })}
                 </div>
 
                 <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mt-6">
@@ -742,7 +811,7 @@
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                         <Target className="w-5 h-5 text-red-500"/>
-                        Resumo
+                        Resumo Executivo
                     </h3>
                   </div>
                   
@@ -797,7 +866,7 @@
                     <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
                       <DollarSign className="text-white font-bold w-5 h-5"/>
                     </div>
-                    <h1 className="font-bold text-lg tracking-tight">CX Profit Center</h1>
+                    <h1 className="font-bold text-lg tracking-tight hidden min-[410px]:block">CX Profit Center</h1>
                   </div>
                   <nav className="flex gap-1">
                     {[
