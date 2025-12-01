@@ -49,7 +49,9 @@
           Calculator,
           ListFilter,
           Infinity,
-          BookOpen
+          BookOpen,
+          Info,
+          Linkedin
         } from 'lucide-react';
 
         // Componentes de UI simplificados
@@ -109,7 +111,7 @@
               )}
             </div>
             <h3 className="text-slate-500 text-sm font-medium mb-1">{title}</h3>
-            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="text-xl font-bold text-slate-800">{value}</p>
             {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
           </Card>
         );
@@ -131,27 +133,26 @@
           // Estado Global
           const [metrics, setMetrics] = useState({
             totalCustomers: 5000,
-            arpu: 150, // Receita média por usuário
-            monthlyChurnRate: 2.5, // %
+            arpu: 150, // Ticket médio por usuário
+            monthlyChurnRate: 5.5, // %
             ticketVolume: 1200,
           });
 
           const [painPoints, setPainPoints] = useState([
             { id: 1, name: "Dificuldade no Checkout", ticketVol: 150, churnRisk: 15, solved: false },
             { id: 2, name: "Erro na Exportação de Relatório", ticketVol: 80, churnRisk: 5, solved: false },
-            { id: 3, name: "Lentidão no Carregamento", ticketVol: 300, churnRisk: 30, solved: false },
+            { id: 3, name: "Lentidão no Carregamento", ticketVol: 120, churnRisk: 30, solved: false },
           ]);
 
           // Handler para mostrar tooltip inteligente
           const handleMouseEnter = (e, text) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const spaceAbove = rect.top;
-            // Se tiver menos de 100px acima, joga o tooltip para baixo
             const placeBelow = spaceAbove < 100;
 
             setTooltip({
               show: true,
-              x: rect.left + rect.width / 2, // Centraliza horizontalmente
+              x: rect.left + rect.width / 2,
               y: placeBelow ? rect.bottom + 10 : rect.top - 10,
               text,
               position: placeBelow ? 'bottom' : 'top'
@@ -171,12 +172,21 @@
           const currentLTV = metrics.monthlyChurnRate > 0 ? metrics.arpu / (metrics.monthlyChurnRate / 100) : 0;
           const currentLifetimeMonths = metrics.monthlyChurnRate > 0 ? 1 / (metrics.monthlyChurnRate / 100) : 0;
 
-          // Função auxiliar para formatar meses de vida (tratando Infinito)
+          // Formatadores
+          const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
+          const formatNumber = (val) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(val);
+          
+          // Formatador de Range
+          const formatRange = (val) => {
+             const low = val * 0.9;
+             const high = val * 1.1;
+             return `${formatMoney(low)} - ${formatMoney(high)}`;
+          };
+          
           const formatLifetimeDisplay = (val) => {
             if (val === Infinity) return "∞";
             return formatNumber(val);
           };
-
 
           // Cálculos de Oportunidade e Simulação
           const calculateOpportunity = () => {
@@ -186,40 +196,31 @@
             let monthlyCustomersSaved = 0;
 
             painPoints.forEach(point => {
-              // 1. Cálculo Direto: Volume da dor x Risco (Bottom-up)
               const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
-              
-              // 2. Cálculo Sistêmico: (Volume da Dor / Volume Total de Tickets) x Churn Total Atual (Top-down)
               const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
               const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
-              
-              // Soma dos impactos
               const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
               const riskValue = totalCustomersImpacted * metrics.arpu * 12;
               
               if (!point.solved) {
                 totalRevenueAtRisk += riskValue;
               } else {
-                potentialSavings += riskValue; // Receita salva
+                potentialSavings += riskValue;
                 ticketsEliminated += parseFloat(point.ticketVol);
                 monthlyCustomersSaved += totalCustomersImpacted;
               }
             });
 
-            // Projeção do Novo Churn e Novo LTV
             const currentMonthlyLost = metrics.totalCustomers * (metrics.monthlyChurnRate / 100);
             const projectedMonthlyLost = Math.max(0, currentMonthlyLost - monthlyCustomersSaved);
             const projectedChurnRate = (projectedMonthlyLost / metrics.totalCustomers) * 100;
             
             let projectedLTV;
             let projectedLifetimeMonths;
-            const maxPracticalLifetimeMonths = 240; // 20 anos como cap para o cálculo financeiro se churn for 0%.
+            const maxPracticalLifetimeMonths = 240;
 
             if (projectedChurnRate <= 0) {
-                // Se o churn é zero ou negativo, tratamos como churn 0%
-                // LTV e Lifetime são limitados pelo cap para fins práticos/financeiros, mas exibimos ∞ para meses
                 projectedLifetimeMonths = Infinity; 
-                // Usamos o cap de 20 anos (240 meses) para a projeção monetária
                 projectedLTV = metrics.arpu * maxPracticalLifetimeMonths; 
             } else {
                 projectedLTV = metrics.arpu / (projectedChurnRate / 100);
@@ -239,98 +240,136 @@
 
           const analysis = calculateOpportunity();
 
-          // Formatadores
-          const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
-          const formatNumber = (val) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(val);
-
           // Renderização das Telas
           const renderSetup = () => (
             <div className="space-y-6 animate-in fade-in duration-500">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 bg-blue-100 rounded-lg"><Briefcase className="w-5 h-5 text-blue-600"/></div>
-                    <h2 className="text-xl font-bold text-slate-800">Métricas de Negócio</h2>
+              <div className="grid lg:grid-cols-12 gap-8">
+                {/* Coluna Esquerda: Inputs */}
+                <div className="lg:col-span-7 space-y-6">
+                  {/* Seção Métricas */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-blue-100 rounded-lg"><Briefcase className="w-5 h-5 text-blue-600"/></div>
+                      <h2 className="text-xl font-bold text-slate-800">Métricas de Negócio</h2>
+                    </div>
+                    <Card className="p-6 space-y-4">
+                      <Input 
+                        label="Base de Clientes Ativos" 
+                        value={metrics.totalCustomers} 
+                        onChange={v => setMetrics({...metrics, totalCustomers: v})}
+                        type="number"
+                      />
+                      <Input 
+                        label="ARPU (Ticket médio por Usuário/Mês)" 
+                        value={metrics.arpu} 
+                        onChange={v => setMetrics({...metrics, arpu: v})}
+                        prefix="R$"
+                        type="number"
+                      />
+                      {/* Card de Dica removido */}
+                      <Input 
+                        label="Churn Rate Mensal Atual (%)" 
+                        value={metrics.monthlyChurnRate} 
+                        onChange={v => setMetrics({...metrics, monthlyChurnRate: v})}
+                        suffix="%"
+                        type="number"
+                      />
+                    </Card>
                   </div>
-                  <Card className="p-6 space-y-4">
-                    <Input 
-                      label="Base de Clientes Ativos" 
-                      value={metrics.totalCustomers} 
-                      onChange={v => setMetrics({...metrics, totalCustomers: v})}
-                      type="number"
-                    />
-                    <Input 
-                      label="ARPU (Receita Média por Usuário/Mês)" 
-                      value={metrics.arpu} 
-                      onChange={v => setMetrics({...metrics, arpu: v})}
-                      prefix="R$"
-                      type="number"
-                    />
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-800 flex gap-2 items-start -mt-2">
-                        <HelpCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                        <span>
-                            <b>Dica:</b> Para calcular o ARPU, divida a <b>Receita Mensal Total</b> pelo número de <b>Clientes Ativos</b>.
-                        </span>
+                  
+                  {/* Seção Contexto Operacional - Movido para a coluna da esquerda */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-2 bg-indigo-100 rounded-lg"><MessageSquare className="w-5 h-5 text-indigo-600"/></div>
+                      <h2 className="text-xl font-bold text-slate-800">Contexto Operacional</h2>
                     </div>
-                    <Input 
-                      label="Churn Rate Mensal Atual (%)" 
-                      value={metrics.monthlyChurnRate} 
-                      onChange={v => setMetrics({...metrics, monthlyChurnRate: v})}
-                      suffix="%"
-                      type="number"
-                    />
-                  </Card>
-                  <div className="bg-slate-900 text-white p-6 rounded-xl mt-6 shadow-xl border border-slate-700">
-                    <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <Calculator className="w-4 h-4"/> Impacto Financeiro Atual
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <div className="text-3xl font-bold text-white">{formatMoney(annualChurnLoss)}</div>
-                        <div className="text-sm text-slate-400 mt-2">
-                          Receita anual perdida em Churn atualmente.
-                        </div>
-                      </div>
-                      <div className="pt-4 border-t border-slate-700">
-                        <div className="flex justify-between items-center mb-1">
-                           <span className="text-slate-400 text-sm">LTV Atual Estimado</span>
-                           <span className="text-xl font-bold text-white">{formatMoney(currentLTV)}</span>
-                        </div>
-                         <p className="text-xs text-slate-500">
-                           Baseado em um tempo de vida médio de <b>{formatNumber(currentLifetimeMonths)} meses</b> (1 / Churn Rate).
-                         </p>
-                      </div>
-                    </div>
+                    <Card className="p-6 space-y-4">
+                      <Input 
+                        label="Volume Mensal de Tickets" 
+                        value={metrics.ticketVolume} 
+                        onChange={v => setMetrics({...metrics, ticketVolume: v})}
+                        type="number"
+                      />
+                      {/* Card de Dica removido */}
+                    </Card>
                   </div>
                 </div>
-                <div className="space-y-4">
-                   <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 bg-indigo-100 rounded-lg"><MessageSquare className="w-5 h-5 text-indigo-600"/></div>
-                    <h2 className="text-xl font-bold text-slate-800">Contexto Operacional</h2>
-                  </div>
-                  <Card className="p-6 space-y-4">
-                    <Input 
-                      label="Volume Mensal de Tickets" 
-                      value={metrics.ticketVolume} 
-                      onChange={v => setMetrics({...metrics, ticketVolume: v})}
-                      type="number"
-                    />
-                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-sm text-slate-500">
-                      <p className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                        <span>
-                          <b>Dica:</b> O "custo por ticket" não importa aqui. Vamos focar apenas em quanto dinheiro estamos perdendo porque o cliente teve uma experiência ruim (Churn).
-                        </span>
-                      </p>
-                    </div>
-                  </Card>
+
+                {/* Coluna Direita: Impacto Financeiro (Estilo Escuro) */}
+                <div className="lg:col-span-5">
+                   <div className="sticky top-6">
+                      <div className="bg-slate-900 text-white p-8 rounded-xl shadow-xl border border-slate-700">
+                        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-8 flex items-center gap-2">
+                          <Calculator className="w-4 h-4"/> Impacto Financeiro Atual
+                        </h3>
+                        
+                        {/* Seção Churn Loss */}
+                        <div className="mb-8">
+                            <div className="text-slate-400 text-sm mb-1">Receita Anual Perdida (Churn)</div>
+                            <div className="text-4xl font-bold text-red-500 mb-1">{formatMoney(annualChurnLoss)}</div>
+                            <div className="text-xs text-slate-500 mb-2">
+                                Faixa Est. (±10%): {formatRange(annualChurnLoss)}
+                            </div>
+                            <div className="text-sm text-slate-400">
+                              {customersLostPerMonth} clientes perdidos/mês × Ticket {formatMoney(metrics.arpu)} × 12
+                            </div>
+                        </div>
+
+                        <div className="h-px bg-slate-700 my-6"></div>
+
+                        {/* Seção LTV */}
+                        <div className="mb-6">
+                            <div className="flex justify-between items-end mb-1">
+                                <span className="text-white font-medium">LTV Estimado</span>
+                                <span className="text-3xl font-bold text-emerald-400">{formatMoney(currentLTV)}</span>
+                            </div>
+                             <div className="text-right text-xs text-slate-500 mb-4">
+                                Faixa Est. (±10%): {formatRange(currentLTV)}
+                            </div>
+
+                            {/* Breakdown Box */}
+                            <div className="bg-slate-800/50 rounded-lg p-4 text-sm font-mono border border-slate-700">
+                                <div className="flex justify-between text-slate-300 mb-2">
+                                    <span>Ticket Médio (ARPU):</span>
+                                    <span>{formatMoney(metrics.arpu)}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300 pb-2 border-b border-slate-600 mb-2">
+                                    <span>Lifetime (1/Churn):</span>
+                                    <span>× {formatNumber(currentLifetimeMonths)} meses</span>
+                                </div>
+                                <div className="flex justify-between text-emerald-400 font-bold">
+                                    <span>= LTV Estimado:</span>
+                                    <span>{formatMoney(currentLTV)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="text-[10px] text-slate-600 text-center">
+                            *Cálculo simplificado sem margem de contribuição.
+                        </div>
+                      </div>
+                   </div>
                 </div>
               </div>
-              <div className="flex justify-end">
+              
+              <div className="flex justify-end pt-4">
                 <Button onClick={() => setActiveTab('painPoints')}>
                   Próximo: Mapear Dores <ArrowRight className="w-4 h-4"/>
                 </Button>
               </div>
+
+               {/* Menção ao Desenvolvedor */}
+               <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
+                  <a 
+                    href="https://www.linkedin.com/in/lucxstein/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-blue-600 transition-colors"
+                  >
+                    <span>Desenvolvido por Lucas Stein</span>
+                    <Linkedin className="w-3 h-3" />
+                  </a>
+               </div>
             </div>
           );
 
@@ -401,16 +440,16 @@
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {painPoints.map((point) => {
-                         const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
-                         const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
-                         const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
-                         const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
-                         
-                         const revenueAtRisk = totalCustomersImpacted * metrics.arpu * 12;
-                         const riskLevel = RISK_LEVELS.find(r => r.value === parseInt(point.churnRisk)) || RISK_LEVELS[0];
-                         const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
-                         
-                         return (
+                          const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
+                          const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
+                          const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
+                          const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
+                          
+                          const revenueAtRisk = totalCustomersImpacted * metrics.arpu * 12;
+                          const riskLevel = RISK_LEVELS.find(r => r.value === parseInt(point.churnRisk)) || RISK_LEVELS[0];
+                          const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
+                          
+                          return (
                           <tr key={point.id} className="hover:bg-slate-50 group transition-colors">
                             <td className="p-3">
                               <input 
@@ -450,41 +489,41 @@
                               </button>
                             </td>
                           </tr>
-                         );
+                          );
                       })}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 mt-6">
-                   <div className="flex items-center gap-2 mb-2 font-semibold text-slate-700">
-                     <BookOpen className="w-5 h-5 text-blue-600"/>
-                     <span>Entenda a Receita em Risco</span>
-                   </div>
-                   <div className="text-sm text-slate-600 space-y-2">
-                     <p>Nossa calculadora utiliza uma abordagem composta para estimar o impacto financeiro:</p>
-                     <ul className="list-disc pl-5 space-y-1">
-                       <li>
-                         <strong>Impacto Direto:</strong> Considera os clientes que abrem tickets dessa dor e saem especificamente por causa dela.
-                       </li>
-                       <li>
-                         <strong>Impacto Sistêmico:</strong> Considera o "ruído" que essa dor gera na operação. Se uma dor representa 30% dos seus chamados, ela contribui proporcionalmente para o churn estrutural da empresa.
-                       </li>
-                     </ul>
-                     <p className="mt-2 pt-2 border-t border-slate-200 font-medium text-slate-800">
-                       Fórmula: <code>(Impacto Direto + Impacto Sistêmico) × ARPU × 12 meses</code>
-                     </p>
-                     
-                     <div className="mt-3 bg-white border border-slate-200 p-3 rounded text-xs text-slate-600">
-                        <p className="font-bold text-slate-700 mb-1">Exemplo Prático:</p>
-                        <p className="mb-1">Imagine uma dor com <strong>100 tickets</strong> e risco de <strong>20%</strong> (em uma empresa com 1.000 tickets totais e 50 cancelamentos/mês):</p>
-                        <ul className="list-disc pl-4 space-y-1">
+                    <div className="flex items-center gap-2 mb-2 font-semibold text-slate-700">
+                      <BookOpen className="w-5 h-5 text-blue-600"/>
+                      <span>Entenda a Receita em Risco</span>
+                    </div>
+                    <div className="text-sm text-slate-600 space-y-2">
+                      <p>Nossa calculadora utiliza uma abordagem composta para estimar o impacto financeiro:</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>
+                          <strong>Impacto Direto:</strong> Considera os clientes que abrem tickets dessa dor e saem especificamente por causa dela.
+                        </li>
+                        <li>
+                          <strong>Impacto Sistêmico:</strong> Considera o "ruído" que essa dor gera na operação. Se uma dor representa 30% dos seus chamados, ela contribui proporcionalmente para o churn estrutural da empresa.
+                        </li>
+                      </ul>
+                      <p className="mt-2 pt-2 border-t border-slate-200 font-medium text-slate-800">
+                        Fórmula: <code>(Impacto Direto + Impacto Sistêmico) × ARPU × 12 meses</code>
+                      </p>
+                      
+                      <div className="mt-3 bg-white border border-slate-200 p-3 rounded text-xs text-slate-600">
+                         <p className="font-bold text-slate-700 mb-1">Exemplo Prático:</p>
+                         <p className="mb-1">Imagine uma dor com <strong>100 tickets</strong> e risco de <strong>20%</strong> (em uma empresa com 1.000 tickets totais e 50 cancelamentos/mês):</p>
+                         <ul className="list-disc pl-4 space-y-1">
                             <li><strong>Direto:</strong> 100 × 20% = <strong>20 clientes</strong> em risco direto.</li>
                             <li><strong>Sistêmico:</strong> (10% do volume total × 20% risco) × 50 churn total = <strong>1 cliente</strong> extra pelo ruído gerado.</li>
                             <li><strong>Total:</strong> 21 clientes em risco × ARPU × 12 = <strong>Receita em Risco</strong>.</li>
-                        </ul>
-                     </div>
-                   </div>
+                         </ul>
+                      </div>
+                    </div>
                 </div>
                 
                 <div className="flex justify-end gap-3 mt-6">
@@ -509,15 +548,15 @@
                     
                     <div className="grid gap-3">
                       {painPoints.map(point => {
-                         const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
-                         const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
-                         const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
-                         const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
-                         
-                         const totalImpact = totalCustomersImpacted * metrics.arpu * 12;
-                         const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
-                         
-                         return (
+                          const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
+                          const volumeShare = metrics.ticketVolume > 0 ? (point.ticketVol / metrics.ticketVolume) : 0;
+                          const systemicCustomersAtRisk = customersLostPerMonth * volumeShare * (point.churnRisk / 100);
+                          const totalCustomersImpacted = directCustomersAtRisk + systemicCustomersAtRisk;
+                          
+                          const totalImpact = totalCustomersImpacted * metrics.arpu * 12;
+                          const volPercentage = metrics.ticketVolume > 0 ? ((point.ticketVol / metrics.ticketVolume) * 100).toFixed(0) : 0;
+                          
+                          return (
                           <div 
                             key={point.id} 
                             onClick={() => toggleSolution(point.id)}
@@ -547,7 +586,7 @@
                               <div className="text-xs text-slate-400">Preservados</div>
                             </div>
                           </div>
-                         );
+                          );
                       })}
                     </div>
 
@@ -580,14 +619,20 @@
                            <div>
                             <div className="text-slate-400 text-sm mb-1">Receita Anual Recuperada</div>
                             <div className="text-3xl font-bold text-emerald-400">{formatMoney(analysis.potentialSavings)}</div>
+                            <div className="text-xs text-emerald-600/80 mb-2">
+                                Faixa Est. (±10%): {formatRange(analysis.potentialSavings)}
+                            </div>
                           </div>
                           <div className="h-px bg-slate-700 my-4"></div>
                           <div>
-                              <div className="text-slate-400 text-sm mb-1">Novo LTV Projetado</div>
-                              <div className="text-2xl font-bold text-white">{formatMoney(analysis.projectedLTV)}</div>
+                              <div className="text-slate-400 text-sm mb-1">Novo LTV Projetado (Est.)</div>
+                              <div className="text-xl font-bold text-white">{formatMoney(analysis.projectedLTV)}</div>
+                              <div className="text-xs text-slate-400 mb-2">
+                                Faixa Est. (±10%): {formatRange(analysis.projectedLTV)}
+                              </div>
                               <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
                                 <TrendingUp className="w-3 h-3"/>
-                                +{formatMoney(analysis.projectedLTV - currentLTV)} vs Atual
+                                Aumento potencial de LTV
                               </div>
                           </div>
                           <div>
@@ -630,20 +675,20 @@
                 <StatCard 
                   title="Receita Recuperável" 
                   value={formatMoney(analysis.potentialSavings)} 
-                  subtext="Anualizada (Churn Evitado)"
+                  subtext={`Est: ${formatRange(analysis.potentialSavings)} (Anualizada)`}
                   icon={DollarSign}
                 />
                 <StatCard 
                   title="Novo LTV Projetado" 
                   value={formatMoney(analysis.projectedLTV)}
-                  subtext={`Aumento de ${formatMoney(analysis.projectedLTV - currentLTV)} por cliente`}
+                  subtext={`Est: ${formatRange(analysis.projectedLTV)} (Churn Ajustado)`}
                   icon={TrendingUp}
                   trend={analysis.projectedLTV > currentLTV ? ((analysis.projectedLTV - currentLTV) / currentLTV * 100).toFixed(1) : 0}
                   trendLabel="%"
                 />
                 <StatCard 
                   title="Tickets Eliminados" 
-                  value={formatNumber(analysis.ticketsEliminated * 12)}
+                  value={formatNumber(analysis.ticketsEliminated * 12)} 
                   subtext="Volume anual reduzido"
                   icon={MessageSquare}
                 />
@@ -663,9 +708,9 @@
                           <div className="absolute bottom-full w-full text-center mb-2 font-bold text-slate-600">
                             {formatNumber(currentLifetimeMonths)} meses
                           </div>
-                          <div className="h-32 bg-slate-200 rounded-t-lg w-full flex flex-col items-center justify-center text-sm">
-                              <span className="text-slate-500 text-xs uppercase mb-1">LTV Atual</span>
-                              <span className="font-bold text-slate-700">{formatMoney(currentLTV)}</span>
+                          <div className="h-32 bg-slate-200 rounded-t-lg w-full flex flex-col items-center justify-center text-sm px-1 text-center">
+                              <span className="text-slate-500 text-[10px] uppercase mb-1">LTV Atual</span>
+                              <span className="font-bold text-slate-700 text-xs">{formatRange(currentLTV)}</span>
                           </div>
                         </div>
                         <div className="pb-16 text-slate-400">
@@ -676,10 +721,10 @@
                           <div className="absolute bottom-full w-full text-center mb-2 font-bold text-emerald-600">
                             {formatLifetimeDisplay(analysis.projectedLifetimeMonths)} meses
                           </div>
-                          <div className="h-40 bg-emerald-500 rounded-t-lg w-full relative overflow-hidden flex flex-col items-center justify-center text-sm text-white shadow-lg shadow-emerald-200">
+                          <div className="h-40 bg-emerald-500 rounded-t-lg w-full relative overflow-hidden flex flex-col items-center justify-center text-sm text-white shadow-lg shadow-emerald-200 px-1 text-center">
                             <div className="absolute top-0 left-0 w-full h-full bg-white opacity-20 transform -skew-x-12 -translate-x-full animate-[shimmer_2s_infinite]"></div>
-                            <span className="text-emerald-100 text-xs uppercase mb-1 relative z-10">LTV Projetado</span>
-                            <span className="font-bold relative z-10">{formatMoney(analysis.projectedLTV)}</span>
+                            <span className="text-emerald-100 text-[10px] uppercase mb-1 relative z-10">LTV Projetado</span>
+                            <span className="font-bold relative z-10 text-xs">{formatRange(analysis.projectedLTV)}</span>
                           </div>
                         </div>
                       </div>
@@ -706,24 +751,39 @@
                             <li className="flex gap-3 text-sm text-slate-700">
                             <CheckCircle className="w-6 h-6 text-emerald-500 shrink-0"/>
                             <span className="leading-relaxed">
-                                Hoje, problemas de experiência custam à empresa <b>{formatMoney(annualChurnLoss)}</b> por ano em churn.
+                                Atualmente, estes problemas de experiência custam à empresa <b>{formatMoney(annualChurnLoss)}</b> por ano em churn.
                             </span>
                             </li>
                             <li className="flex gap-3 text-sm text-slate-700">
                             <CheckCircle className="w-6 h-6 text-emerald-500 shrink-0"/>
                             <span className="leading-relaxed">
-                                Selecionamos melhorias que protegem <b>{formatMoney(analysis.potentialSavings)}</b> dessa receita.
+                                Com as melhorias selecionadas, é possível proteger <b>{formatMoney(analysis.potentialSavings)}</b> dessa receita.
                             </span>
                             </li>
                             <li className="flex gap-3 text-sm text-slate-700">
                             <CheckCircle className="w-6 h-6 text-emerald-500 shrink-0"/>
                             <span className="leading-relaxed">
-                                Além da receita imediata, aumentamos o valor do cliente (LTV) de <b>{formatMoney(currentLTV)}</b> para <b>{formatMoney(analysis.projectedLTV)}</b>, estendendo o ciclo de vida.
+                                Além da receita imediata, o valor do cliente (LTV) aumenta de <b>~{formatMoney(currentLTV)}</b> para <b>~{formatMoney(analysis.projectedLTV)}</b> (valor médio estimado), estendendo o ciclo de vida.
                             </span>
                             </li>
                         </ul>
                   </div>
                 </Card>
+              </div>
+
+               {/* Disclaimer Card (Agora no Dashboard) */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 mt-8 flex gap-4 items-start shadow-sm">
+                 <div className="p-2 bg-amber-100 rounded-full shrink-0 mt-1">
+                     <Info className="w-5 h-5 text-amber-700" />
+                 </div>
+                 <div className="text-sm text-amber-900 space-y-2">
+                    <h4 className="font-bold text-amber-950">Disclaimer</h4>
+                    <p className="leading-relaxed opacity-90">
+                        Esta calculadora fornece uma estimativa simplificada para priorização estratégica inicial e validação de hipóteses. 
+                        O cálculo de LTV assume um churn médio constante e uma distribuição exponencial de retenção. 
+                        Para análises precisas é necessário modelagem por cohorts, avaliação de aging, expansão de receita e segmentação comportamental.
+                    </p>
+                 </div>
               </div>
             </div>
           );
@@ -799,4 +859,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>
