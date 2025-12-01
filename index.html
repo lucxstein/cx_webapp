@@ -267,7 +267,6 @@
                         prefix="R$"
                         type="number"
                       />
-                      {/* Card de Dica removido */}
                       <Input 
                         label="Churn Rate Mensal Atual (%)" 
                         value={metrics.monthlyChurnRate} 
@@ -278,7 +277,7 @@
                     </Card>
                   </div>
                   
-                  {/* Seção Contexto Operacional - Movido para a coluna da esquerda */}
+                  {/* Seção Contexto Operacional */}
                   <div>
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-2 bg-indigo-100 rounded-lg"><MessageSquare className="w-5 h-5 text-indigo-600"/></div>
@@ -291,7 +290,6 @@
                         onChange={v => setMetrics({...metrics, ticketVolume: v})}
                         type="number"
                       />
-                      {/* Card de Dica removido */}
                     </Card>
                   </div>
                 </div>
@@ -381,8 +379,12 @@
             if (coveragePercentage > 40) progressColor = "bg-yellow-500";
             if (coveragePercentage > 80) progressColor = "bg-emerald-500";
 
+            // CORREÇÃO AQUI: Geração de ID robusta
             const addPoint = () => {
-              const newId = painPoints.length + 1;
+              // Encontra o maior ID existente e soma 1. Se não houver itens, começa com 1.
+              const maxId = painPoints.length > 0 ? Math.max(...painPoints.map(p => p.id)) : 0;
+              const newId = maxId + 1;
+              
               setPainPoints([...painPoints, { id: newId, name: "Novo Problema", ticketVol: 0, churnRisk: 5, solved: false }]);
             };
 
@@ -417,9 +419,7 @@
                   </div>
                 </Card>
 
-                {/* --- MUDANÇA PRINCIPAL AQUI: VISÃO DESKTOP (TABELA) vs VISÃO MOBILE (CARDS) --- */}
-                
-                {/* 1. VISÃO DESKTOP (Tabela padrão - oculta em telas pequenas) */}
+                {/* VISÃO DESKTOP */}
                 <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-6">
                   <table className="w-full text-left border-collapse bg-white">
                     <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold">
@@ -498,7 +498,7 @@
                   </table>
                 </div>
 
-                {/* 2. VISÃO MOBILE (Cards - visível apenas em telas pequenas) */}
+                {/* VISÃO MOBILE */}
                 <div className="md:hidden space-y-4 mt-6">
                     {painPoints.map((point) => {
                           const directCustomersAtRisk = point.ticketVol * (point.churnRisk / 100);
@@ -584,13 +584,13 @@
                       </p>
                       
                       <div className="mt-3 bg-white border border-slate-200 p-3 rounded text-xs text-slate-600">
-                         <p className="font-bold text-slate-700 mb-1">Exemplo Prático:</p>
-                         <p className="mb-1">Imagine uma dor com <strong>100 tickets</strong> e risco de <strong>20%</strong> (em uma empresa com 1.000 tickets totais e 50 cancelamentos/mês):</p>
-                         <ul className="list-disc pl-4 space-y-1">
+                          <p className="font-bold text-slate-700 mb-1">Exemplo Prático:</p>
+                          <p className="mb-1">Imagine uma dor com <strong>100 tickets</strong> e risco de <strong>20%</strong> (em uma empresa com 1.000 tickets totais e 50 cancelamentos/mês):</p>
+                          <ul className="list-disc pl-4 space-y-1">
                             <li><strong>Direto:</strong> 100 × 20% = <strong>20 clientes</strong> em risco direto.</li>
                             <li><strong>Sistêmico:</strong> (10% do volume total × 20% risco) × 50 churn total = <strong>1 cliente</strong> extra pelo ruído gerado.</li>
                             <li><strong>Total:</strong> 21 clientes em risco × ARPU × 12 = <strong>Receita em Risco</strong>.</li>
-                         </ul>
+                          </ul>
                       </div>
                     </div>
                 </div>
@@ -928,6 +928,4 @@
         root.render(<App />);
     </script>
 </body>
-
 </html>
-
